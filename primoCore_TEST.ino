@@ -1,7 +1,7 @@
 /*
 Moj kod testowy do BLE primo core
 */
-#define PULSE 1000 //zalezy od rodzaju miernika pradu
+//#define PULSE 1000 //zalezy od rodzaju miernika pradu
 #define POWER 7 // pin zasilajacy wzmacniacz
 
 #include <CoreSensors.h>
@@ -10,16 +10,21 @@ Moj kod testowy do BLE primo core
 #include "ArduinoLowPower.h"
 #include <BLEPeripheral.h>
 #include <nrf_rtc.h>
-
-double ppwh = ((double)PULSE)/1000;
+int pulse = 1000;
+int sleeptime = 1000;
 //volatile byte hmm = LOW;
 unsigned long time1=0;
 unsigned long time2=0;
 double kwhh=0;
-int intervaltime=0;
+double intervaltime=0;
 //volatile int zz,yy = 0;
 BLESerial bleSerial = BLESerial();
-char dat;
+int dat;
+int predat;
+//bool sleeptimemode,pulsemode = false; // defaultowa wartosc
+
+
+
 void setup() {
 	
 	//PPI.setTimerInterval(2000);
@@ -29,9 +34,9 @@ void setup() {
 
 	pinMode(0, INPUT_PULLUP); // Pin od ktorego chce przerwanie
 	pinMode(POWER, OUTPUT);
-	//pinMode(BLUE_LED, OUTPUT);
+	pinMode(BLUE_LED, OUTPUT);
 	pinMode(LED_BUILTIN, OUTPUT);
-	//pinMode(GREEN_LED, OUTPUT);
+	pinMode(GREEN_LED, OUTPUT);
 
 	//attachInterrupt(digitalPinToInterrupt(0), zbierzdane, CHANGE); //klasyczne przerwanie tu moze byc tez RISING
 	//LowPower.attachInterruptWakeup(0, getpulsecount, CHANGE); //przerwanie snu
@@ -59,15 +64,63 @@ void setup() {
 
 
 void loop() {
+	if (bleSerial.available())
+	{
+		dat = bleSerial.read();
+		if (predat == 'S')
+		{
+			digitalWrite(BLUE_LED, LOW);
+			if (dat == '1')
+				sleeptime = 1000;
+			else if (dat == '2')
+				sleeptime = 2000;
+			else if (dat == '3')
+				sleeptime = 5000;
+			else if (dat == '4')
+				sleeptime = 10000;
+			else if (dat == '5')
+				sleeptime = 20000;
+			else if (dat == '6')
+				sleeptime = 60000;
+			bleSerial.println(sleeptime);
+			predat = 'X';
+		}
+		if (predat == 'P')
+		{
+			digitalWrite(GREEN_LED, LOW);
+			if (dat == '1')
+				pulse = 1000;
+			else if (dat == '2')
+				pulse = 1500;
+			else if (dat == '3')
+				pulse = 1900;
+			else if (dat == '4')
+				pulse = 2500;
+			bleSerial.println(pulse);
+			predat = 'X';
+		}
+		if (dat == 'S')
+		{
+			digitalWrite(BLUE_LED, HIGH);
+			predat = dat;
+		}
+	
+		if (dat == 'P') {
+			digitalWrite(GREEN_LED, HIGH);
+			predat = dat;
+		}
+		
 
+	}
 
 	digitalWrite(POWER, LOW);
-	//digitalWrite(GREEN_LED, HIGH);
-	LowPower.sleep(10000);
+	LowPower.sleep(sleeptime);
+
 	for (int i = 0; i < 2; i++) {
 		LowPower.sleep();
 		getpulsecount();
 	}
+	intervaltime = 3600000 /(pulse*intervaltime);
 	bleSerial.println(intervaltime);
 	
 	
